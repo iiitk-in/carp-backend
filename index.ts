@@ -1,0 +1,105 @@
+import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import path from "path";
+import { fileURLToPath } from "url";
+import cors from "cors";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+console.log(__dirname);
+console.log("hello");
+const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
+
+const ADMIN_PASSWORD = "your_secure_password_here";
+let currentQuestion;
+type ResponseType = {
+  qid: number;
+  choiceNo: number;
+  timestamp: Date;
+  uuid: string;
+};
+const responses: ResponseType[] = [];
+const participants: Record<string, string>[] = [];
+
+// Serve static files
+app.use(express.static(path.join(__dirname, "public")));
+app.use(cors());
+// Routes
+app.get("/admin", (req, res) => {
+  console.log(__dirname);
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+app.get("/quiz", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "quiz.html"));
+});
+
+// take username and return uuid
+app.post("/register", (req, res) => {
+  const name = req.body.name;
+  const uuid = crypto.randomUUID();
+  participants.push({ name, uuid });
+  res.json({ uuid });
+});
+
+io.on("connection", (socket) => {
+  console.log("New client connected");
+
+  // Send the latest question to the new user
+  if (currentQuestion) {
+    socket.emit("mcq", currentQuestion);
+  } else {
+    socket.emit("waiting", "Waiting for the next question...");
+  }
+
+  // Handle MCQ messages from admins
+  socket.on("mcq", (data, callback) => {
+    if (data.password !== ADMIN_PASSWORD) {
+      callback({ error: "Unauthorized" });
+      return;
+    }
+
+    const { qid, question, choices } = data;
+    if (!qid || !question || !choices || choices.length < 2) {
+      callback({ error: "Invalid question" });
+      return;
+    }
+    currentQuestion = { qid, question, choices };
+
+    // Broadcast the question to all clients except the sender
+    socket.broadcast.emit("mcq", currentQuestion);
+
+    callback({ success: true });
+  });
+
+  // Handle responses from users
+  socket.on("response", (data) => {
+    const { qid, choiceNo, uuid } = data;
+    if (!qid || !choiceNo || !uuid) {
+      console.log("Invalid response", data);
+      return;
+    }
+    if (!participants.includes(uuid)) {
+      console.log("Unauthorized response", data);
+      return;
+    }
+    responses.push({ qid, choiceNo, timestamp: new Date(), uuid });
+    console.log("New response:", { qid, choiceNo });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected");
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

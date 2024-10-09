@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div id="app">
+        <h1>Quiz</h1>
+        <div v-if="waiting">
+            <p>{{ waiting }}</p>
+        </div>
+        <div v-else-if="currentQuestion">
+            <h2>{{ currentQuestion.question }}</h2>
+            <div v-for="(choice, index) in currentQuestion.choices" :key="index">
+                <input type="radio" :id="'choice' + index" :value="index" v-model="selectedChoice">
+                <label :for="'choice' + index">{{ choice }}</label>
+            </div>
+            <button @click="submitAnswer" :disabled="selectedChoice === null">Submit Answer</button>
+        </div>
+        <p v-if="message">{{ message }}</p>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                socket: null,
+                waiting: 'Waiting for the next question...',
+                currentQuestion: null,
+                selectedChoice: null,
+                message: ''
+            },
+            methods: {
+                submitAnswer() {
+                    if (this.selectedChoice !== null) {
+                        this.socket.emit('response', {
+                            qid: this.currentQuestion.qid,
+                            choiceNo: this.selectedChoice
+                        });
+                        this.message = 'Answer submitted';
+                        this.selectedChoice = null;
+                        this.currentQuestion = null;
+                        this.waiting = 'Waiting for the next question...';
+                    }
+                }
+            },
+            mounted() {
+                this.socket = io();
+                this.socket.on('mcq', (question) => {
+                    this.waiting = null;
+                    this.currentQuestion = question;
+                    this.selectedChoice = null;
+                    this.message = '';
+                });
+                this.socket.on('waiting', (message) => {
+                    this.waiting = message;
+                    this.currentQuestion = null;
+                    this.selectedChoice = null;
+                    this.message = '';
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

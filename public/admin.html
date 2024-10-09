@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <h1>Admin Panel</h1>
+        <div>
+            <label for="password">Admin Password:</label>
+            <input type="password" id="password" v-model="password">
+        </div>
+        <div>
+            <label for="qid">Question ID:</label>
+            <input type="text" id="qid" v-model="qid">
+        </div>
+        <div>
+            <label for="question">Question:</label>
+            <input type="text" id="question" v-model="question">
+        </div>
+        <div v-for="(choice, index) in choices" :key="index">
+            <label :for="'choice' + index">Choice {{ index + 1 }}:</label>
+            <input :id="'choice' + index" v-model="choices[index]">
+        </div>
+        <button @click="addChoice">Add Choice</button>
+        <button @click="sendQuestion">Send Question</button>
+        <p v-if="message">{{ message }}</p>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                socket: null,
+                password: '',
+                qid: '',
+                question: '',
+                choices: ['', ''],
+                message: ''
+            },
+            methods: {
+                addChoice() {
+                    this.choices.push('');
+                },
+                sendQuestion() {
+                    const data = {
+                        password: this.password,
+                        qid: this.qid,
+                        question: this.question,
+                        choices: this.choices.filter(choice => choice.trim() !== '')
+                    };
+                    this.socket.emit('mcq', data, (response) => {
+                        if (response.error) {
+                            this.message = 'Error: ' + response.error;
+                        } else {
+                            this.message = 'Question sent successfully';
+                            this.qid = '';
+                            this.question = '';
+                            this.choices = ['', ''];
+                        }
+                    });
+                }
+            },
+            mounted() {
+                this.socket = io();
+            }
+        });
+    </script>
+</body>
+
+</html>
