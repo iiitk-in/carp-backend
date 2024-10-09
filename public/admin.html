@@ -33,6 +33,10 @@
         <button @click="sendQuestion">Send Question</button>
         <p v-if="message">{{ message }}</p>
         <hr>
+        <label for="messageString">Message:</label>
+        <input type="text" id="messageString" v-model="messageOutbox">
+        <button @click="sendMessage">Send Message</button>
+        <hr>
 
         <h2>Danger!</h2>
         <button @click="forceLogout">Force Logout</button>
@@ -47,7 +51,8 @@
                 qid: '',
                 question: '',
                 choices: ['', ''],
-                message: ''
+                message: '',
+                messageOutbox: ''
             },
             methods: {
                 forceLogout() {
@@ -88,7 +93,11 @@
                             this.choices = ['', ''];
                         }
                     });
+                },
+                sendMessage() {
+                    this.socket.emit('msg', this.messageOutbox);
                 }
+
             },
             mounted() {
                 this.socket = io();
