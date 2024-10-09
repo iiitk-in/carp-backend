@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <h1>Leaderboard</h1>
+        <div>
+            <label for="qid">Question ID:</label>
+            <input type="text" id="qid" v-model="qid">
+        </div>
+        <div>
+            <label for="answerKey">Answer Key:</label>
+            <input type="text" id="answerKey" v-model="answerKey" placeholder="e.g. 1,2">
+        </div>
+        <button @click="filterResponses">Filter Responses</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Participant</th>
+                    <th>Response Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(participant, index) in filteredResponses" :key="participant.uuid">
+                    <td>{{ index + 1 }}</td>
+                    <td>{{ participant.name }}</td>
+                    <td>{{ formatTime(participant.responseTime) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                qid: '',
+                answerKey: '',
+                responses: [],
+                participants: [],
+            },
+            computed: {
+                filteredResponses() {
+                    if (!this.qid || !this.answerKey) return [];
+
+                    const correctAnswers = this.answerKey.split(',').map(Number);
+                    return this.responses
+                        .filter(response =>
+                            response.qid === this.qid &&
+                            this.arraysEqual(response.choiceNo, correctAnswers)
+                        )
+                        .map(response => {
+                            const participant = this.participants.find(p => p.uuid === response.uuid);
+                            return {
+                                ...response,
+                                name: participant ? participant.name : 'Unknown',
+                                responseTime: response.time
+                            };
+                        })
+                        .sort((a, b) => a.responseTime - b.responseTime);
+                }
+            },
+            methods: {
+                filterResponses() {
+                    // This method is called when the filter button is clicked
+                    // The filtering is done in the computed property 'filteredResponses'
+                },
+                formatTime(ms) {
+                    console.log(ms);
+                    const minutes = Math.floor((ms / (1000 * 60)) % 60);
+                    const seconds = Math.floor((ms / 1000) % 60);
+                    const milliseconds = ms % 1000;
+                    const prettyTime = `${minutes}m ${seconds}s ${milliseconds}ms`;
+                    return prettyTime;
+                },
+                arraysEqual(arr1, arr2) {
+                    if (arr1.length !== arr2.length) return false;
+                    for (let i = 0; i < arr1.length; i++) {
+                        if (arr1[i] !== arr2[i]) return false;
+                    }
+                    return true;
+                }
+            },
+            mounted() {
+                // Fetch initial data
+                fetch('/api/responses')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.responses = data;
+                    });
+
+                fetch('/api/participants')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.participants = data;
+                    });
+            }
+        });
+    </script>
+</body>
+
+</html>

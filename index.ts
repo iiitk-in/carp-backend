@@ -7,8 +7,12 @@ import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 console.log(__dirname);
 console.log("hello");
+
+let lastQuestionSentTime = new Date();
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -19,18 +23,22 @@ const io = new Server(server, {
 
 const ADMIN_PASSWORD = "password";
 let currentQuestion;
+
 type ResponseType = {
-  qid: number;
-  choiceNo: number;
-  timestamp: Date;
+  qid: string;
+  choiceNo: number[];
+  time: number;
   uuid: string;
 };
+
 const responses: ResponseType[] = [];
 const participants: Record<string, string>[] = [];
 
 // Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 app.use(cors());
+app.use(express.json());
+
 // Routes
 app.get("/admin", (req, res) => {
   console.log(__dirname);
@@ -41,19 +49,28 @@ app.get("/quiz", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "quiz.html"));
 });
 
+app.get("/leaderboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "leaderboard.html"));
+});
+
+// API routes for leaderboard
+app.get("/api/responses", (req, res) => {
+  res.json(responses);
+});
+
+app.get("/api/participants", (req, res) => {
+  res.json(participants);
+});
+
 // take username and return uuid
-app.use(express.json());
 app.post("/register", (req, res) => {
   const data = req.body;
-
   if (!data.name) {
     res.status(400).json({ error: "Name is required" });
     return;
   }
-
   const name = data.name;
   const uuid = crypto.randomUUID();
-
   participants.push({ name, uuid });
   console.log("New participant:", { name, uuid });
   res.json({ uuid });
@@ -65,7 +82,6 @@ app.post("/forceLogout", (req, res) => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-
   participants.length = 0;
   //send a message to all clients to logout
   io.emit("forceLogout");
@@ -95,11 +111,11 @@ io.on("connection", (socket) => {
       callback({ error: "Invalid question" });
       return;
     }
-    currentQuestion = { qid, question, choices };
 
+    currentQuestion = { qid, question, choices };
     // Broadcast the question to all clients except the sender
     socket.broadcast.emit("mcq", currentQuestion);
-
+    lastQuestionSentTime = new Date();
     callback({ success: true });
   });
 
@@ -111,7 +127,6 @@ io.on("connection", (socket) => {
 
     // Broadcast the message to all clients except the sender
     socket.broadcast.emit("msg", { message: data.message });
-
     callback({ success: true });
   });
 
@@ -122,11 +137,19 @@ io.on("connection", (socket) => {
       console.log("Invalid response", data);
       return;
     }
+
     if (!participants.find((p) => p.uuid === uuid)) {
       console.log("Unauthorized response", data);
       return;
     }
-    responses.push({ qid, choiceNo, timestamp: new Date(), uuid });
+    const timeDiff = new Date().getTime() - lastQuestionSentTime.getTime();
+
+    responses.push({
+      qid,
+      choiceNo,
+      time: timeDiff,
+      uuid,
+    });
     console.log("New response:", { qid, choiceNo });
   });
 
