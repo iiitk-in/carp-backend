@@ -110,7 +110,7 @@ io.on("connection", (socket) => {
     }
 
     // Broadcast the message to all clients except the sender
-    socket.broadcast.emit("message", { message: data.message });
+    socket.broadcast.emit("msg", { message: data.message });
 
     callback({ success: true });
   });
