@@ -32,6 +32,10 @@
         <button @click="addChoice">Add Choice</button>
         <button @click="sendQuestion">Send Question</button>
         <p v-if="message">{{ message }}</p>
+        <hr>
+
+        <h2>Danger!</h2>
+        <button @click="forceLogout">Force Logout</button>
     </div>
 
     <script>
@@ -46,6 +50,24 @@
                 message: ''
             },
             methods: {
+                forceLogout() {
+                    const req = fetch('/forceLogout', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            password: this.password
+                        })
+                    });
+                    req.then(res => res.json()).then(data => {
+                        if (data.error) {
+                            this.message = 'Error: ' + data.error;
+                        } else {
+                            this.message = 'Force logout successful';
+                        }
+                    });
+                },
                 addChoice() {
                     this.choices.push('');
                 },

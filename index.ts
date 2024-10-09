@@ -42,11 +42,35 @@ app.get("/quiz", (req, res) => {
 });
 
 // take username and return uuid
+app.use(express.json());
 app.post("/register", (req, res) => {
-  const name = req.body.name;
+  const data = req.body;
+
+  if (!data.name) {
+    res.status(400).json({ error: "Name is required" });
+    return;
+  }
+
+  const name = data.name;
   const uuid = crypto.randomUUID();
+
   participants.push({ name, uuid });
+  console.log("New participant:", { name, uuid });
   res.json({ uuid });
+});
+
+// Log everyone out
+app.post("/forceLogout", (req, res) => {
+  if (req.body.password !== ADMIN_PASSWORD) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  participants.length = 0;
+  //send a message to all clients to logout
+  io.emit("forceLogout");
+  console.log("All participants logged out");
+  res.json({ success: true });
 });
 
 io.on("connection", (socket) => {
@@ -86,7 +110,7 @@ io.on("connection", (socket) => {
       console.log("Invalid response", data);
       return;
     }
-    if (!participants.includes(uuid)) {
+    if (!participants.find((p) => p.uuid === uuid)) {
       console.log("Unauthorized response", data);
       return;
     }
