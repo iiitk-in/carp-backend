@@ -95,9 +95,18 @@
                     });
                 },
                 sendMessage() {
-                    this.socket.emit('msg', this.messageOutbox);
+                    this.socket.emit('adminMessage', {
+                        password: this.password,
+                        message: this.messageOutbox
+                    }, (response) => {
+                        if (response.error) {
+                            this.message = 'Error: ' + response.error;
+                        } else {
+                            this.message = 'Message sent successfully';
+                            this.messageOutbox = '';
+                        }
+                    });
                 }
-
             },
             mounted() {
                 this.socket = io();

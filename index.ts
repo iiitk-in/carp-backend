@@ -17,7 +17,7 @@ const io = new Server(server, {
   },
 });
 
-const ADMIN_PASSWORD = "your_secure_password_here";
+const ADMIN_PASSWORD = "password";
 let currentQuestion;
 type ResponseType = {
   qid: number;
@@ -99,6 +99,18 @@ io.on("connection", (socket) => {
 
     // Broadcast the question to all clients except the sender
     socket.broadcast.emit("mcq", currentQuestion);
+
+    callback({ success: true });
+  });
+
+  socket.on("adminMessage", (data, callback) => {
+    if (data.password !== ADMIN_PASSWORD) {
+      callback({ error: "Unauthorized" });
+      return;
+    }
+
+    // Broadcast the message to all clients except the sender
+    socket.broadcast.emit("message", { message: data.message });
 
     callback({ success: true });
   });
